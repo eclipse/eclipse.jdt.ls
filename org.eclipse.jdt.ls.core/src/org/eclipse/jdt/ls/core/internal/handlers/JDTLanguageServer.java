@@ -125,6 +125,8 @@ import org.eclipse.lsp4j.RenameFilesParams;
 import org.eclipse.lsp4j.RenameParams;
 import org.eclipse.lsp4j.SelectionRange;
 import org.eclipse.lsp4j.SelectionRangeParams;
+import org.eclipse.lsp4j.SemanticTokens;
+import org.eclipse.lsp4j.SemanticTokensParams;
 import org.eclipse.lsp4j.SignatureHelp;
 import org.eclipse.lsp4j.SignatureHelpParams;
 import org.eclipse.lsp4j.SymbolInformation;
@@ -458,12 +460,12 @@ public class JDTLanguageServer extends BaseJDTLanguageServer implements Language
 		syncCapabilitiesToSettings();
 		boolean jvmChanged = false;
 		try {
-			jvmChanged = jvmConfigurator.configureJVMs(preferenceManager.getPreferences(), this.client);
+			jvmChanged = JVMConfigurator.configureJVMs(preferenceManager.getPreferences(), this.client);
 		} catch (Exception e) {
 			JavaLanguageServerPlugin.logException(e.getMessage(), e);
 		}
 		try {
-			boolean autoBuildChanged = pm.setAutoBuilding(preferenceManager.getPreferences().isAutobuildEnabled());
+			boolean autoBuildChanged = ProjectsManager.setAutoBuilding(preferenceManager.getPreferences().isAutobuildEnabled());
 			if (jvmChanged) {
 				buildWorkspace(Either.forLeft(true));
 			} else if (autoBuildChanged) {
@@ -986,7 +988,7 @@ public class JDTLanguageServer extends BaseJDTLanguageServer implements Language
 
 	@Override
 	public CompletableFuture<List<CallHierarchyItem>> prepareCallHierarchy(CallHierarchyPrepareParams params) {
-		logInfo(">> textDocumentt/prepareCallHierarchy");
+		logInfo(">> textDocument/prepareCallHierarchy");
 		return computeAsyncWithClientProgress((monitor) -> new CallHierarchyHandler().prepareCallHierarchy(params, monitor));
 	}
 
@@ -1000,6 +1002,15 @@ public class JDTLanguageServer extends BaseJDTLanguageServer implements Language
 	public CompletableFuture<List<CallHierarchyOutgoingCall>> callHierarchyOutgoingCalls(CallHierarchyOutgoingCallsParams params) {
 		logInfo(">> callHierarchy/outgoingCalls");
 		return computeAsyncWithClientProgress((monitor) -> new CallHierarchyHandler().callHierarchyOutgoingCalls(params, monitor));
+	}
+
+	@Override
+	public CompletableFuture<SemanticTokens> semanticTokensFull(SemanticTokensParams params) {
+		logInfo(">> textDocument/semanticTokens/full");
+		return computeAsync(monitor -> {
+			waitForLifecycleJobs(monitor);
+			return SemanticTokensHandler.provide(monitor, params);
+		});
 	}
 
 	private <R> CompletableFuture<R> computeAsyncWithClientProgress(Function<IProgressMonitor, R> code) {

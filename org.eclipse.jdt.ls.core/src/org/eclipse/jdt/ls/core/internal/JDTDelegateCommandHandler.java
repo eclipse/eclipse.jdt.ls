@@ -25,10 +25,8 @@ import org.eclipse.jdt.ls.core.internal.commands.ProjectCommand;
 import org.eclipse.jdt.ls.core.internal.commands.ProjectCommand.ClasspathOptions;
 import org.eclipse.jdt.ls.core.internal.handlers.FormatterHandler;
 import org.eclipse.jdt.ls.core.internal.handlers.ResolveSourceMappingHandler;
-import org.eclipse.jdt.ls.core.internal.commands.SemanticTokensCommand;
 import org.eclipse.jdt.ls.core.internal.commands.SourceAttachmentCommand;
 import org.eclipse.jdt.ls.core.internal.commands.TypeHierarchyCommand;
-import org.eclipse.jdt.ls.core.internal.semantictokens.SemanticTokensLegend;
 import org.eclipse.lsp4j.ResolveTypeHierarchyItemParams;
 import org.eclipse.lsp4j.TextDocumentPositionParams;
 import org.eclipse.lsp4j.TypeHierarchyDirection;
@@ -84,10 +82,6 @@ public class JDTDelegateCommandHandler implements IDelegateCommandHandler {
 					return ProjectCommand.getAllJavaProjects();
 				case "java.project.refreshDiagnostics":
 					return DiagnosticsCommand.refreshDiagnostics((String) arguments.get(0), (String) arguments.get(1), (boolean) arguments.get(2));
-				case "java.project.provideSemanticTokens":
-					return SemanticTokensCommand.provide((String) arguments.get(0));
-				case "java.project.getSemanticTokensLegend":
-					return new SemanticTokensLegend();
 				case "java.project.import":
 					ProjectCommand.importProject(monitor);
 					return null;

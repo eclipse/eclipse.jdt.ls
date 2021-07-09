@@ -17,6 +17,7 @@ package org.eclipse.jdt.ls.core.internal.handlers;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -38,11 +39,14 @@ import org.eclipse.jdt.ls.core.internal.managers.ProjectsManager;
 import org.eclipse.jdt.ls.core.internal.preferences.PreferenceManager;
 import org.eclipse.lsp4j.CodeActionOptions;
 import org.eclipse.lsp4j.CodeLensOptions;
+import org.eclipse.lsp4j.DocumentFilter;
 import org.eclipse.lsp4j.DocumentOnTypeFormattingOptions;
 import org.eclipse.lsp4j.ExecuteCommandOptions;
 import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.InitializeResult;
 import org.eclipse.lsp4j.SaveOptions;
+import org.eclipse.lsp4j.SemanticTokensServerFull;
+import org.eclipse.lsp4j.SemanticTokensWithRegistrationOptions;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
 import org.eclipse.lsp4j.TextDocumentSyncOptions;
@@ -177,6 +181,16 @@ final public class InitHandler extends BaseInitHandler {
 		wsFoldersOptions.setChangeNotifications(Boolean.TRUE);
 		wsCapabilities.setWorkspaceFolders(wsFoldersOptions);
 		capabilities.setWorkspace(wsCapabilities);
+
+		SemanticTokensWithRegistrationOptions semanticTokensOptions = new SemanticTokensWithRegistrationOptions();
+		semanticTokensOptions.setFull(new SemanticTokensServerFull(false));
+		semanticTokensOptions.setRange(false);
+		semanticTokensOptions.setDocumentSelector(List.of(
+			new DocumentFilter("java", "file", null),
+			new DocumentFilter("java", "jdt", null)
+		));
+		semanticTokensOptions.setLegend(SemanticTokensHandler.getLegend());
+		capabilities.setSemanticTokensProvider(semanticTokensOptions);
 
 		initializeResult.setCapabilities(capabilities);
 	}

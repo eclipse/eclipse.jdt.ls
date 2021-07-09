@@ -45,6 +45,7 @@ import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.TagElement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeLiteral;
+import org.eclipse.lsp4j.SemanticTokens;
 
 public class SemanticTokensVisitor extends ASTVisitor {
 	private CompilationUnit cu;
@@ -90,9 +91,9 @@ public class SemanticTokensVisitor extends ASTVisitor {
 		return new SemanticTokens(encodedTokens());
 	}
 
-	private int[] encodedTokens() {
+	private List<Integer> encodedTokens() {
 		int numTokens = tokens.size();
-		int[] data = new int[numTokens * 5];
+		List<Integer> data = new ArrayList<>(numTokens * 5);
 		int currentLine = 0;
 		int currentColumn = 0;
 		for (int i = 0; i < numTokens; i++) {
@@ -111,12 +112,11 @@ public class SemanticTokensVisitor extends ASTVisitor {
 				int tokenTypeIndex = token.getTokenType().ordinal();
 				int tokenModifiers = token.getTokenModifiers();
 
-				int offset = i * 5;
-				data[offset] = deltaLine;
-				data[offset + 1] = deltaColumn;
-				data[offset + 2] = token.getLength();
-				data[offset + 3] = tokenTypeIndex;
-				data[offset + 4] = tokenModifiers;
+				data.add(deltaLine);
+				data.add(deltaColumn);
+				data.add(token.getLength());
+				data.add(tokenTypeIndex);
+				data.add(tokenModifiers);
 			}
 		}
 		return data;

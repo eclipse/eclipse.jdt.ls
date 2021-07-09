@@ -10,7 +10,7 @@
  * Contributors:
  *     Microsoft Corporation - initial API and implementation
  *******************************************************************************/
-package org.eclipse.jdt.ls.core.internal.commands;
+package org.eclipse.jdt.ls.core.internal.handlers;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
 
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jdt.core.IBuffer;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
@@ -31,17 +32,18 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.ls.core.internal.JDTUtils;
 import org.eclipse.jdt.ls.core.internal.WorkspaceHelper;
 import org.eclipse.jdt.ls.core.internal.correction.TestOptions;
-import org.eclipse.jdt.ls.core.internal.handlers.JsonRpcHelpers;
 import org.eclipse.jdt.ls.core.internal.managers.AbstractProjectsManagerBasedTest;
-import org.eclipse.jdt.ls.core.internal.semantictokens.SemanticTokens;
-import org.eclipse.jdt.ls.core.internal.semantictokens.SemanticTokensLegend;
+import org.eclipse.lsp4j.SemanticTokens;
+import org.eclipse.lsp4j.SemanticTokensLegend;
+import org.eclipse.lsp4j.SemanticTokensParams;
+import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.runners.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.class)
-public class SemanticTokensCommandTest extends AbstractProjectsManagerBasedTest {
+public class SemanticTokensHandlerTest extends AbstractProjectsManagerBasedTest {
 	private IJavaProject semanticTokensProject;
 	private IPackageFragment fooPackage;
 	private String classFileUri = "jdt://contents/foo.jar/foo/bar.class?%3Dsemantic-tokens%2Ffoo.jar%3Cfoo%28bar.class";
@@ -377,32 +379,32 @@ public class SemanticTokensCommandTest extends AbstractProjectsManagerBasedTest 
 	}
 
 	/**
-	 * Helper class for asserting semantic tokens provided by the {@link SemanticTokensCommand},
+	 * Helper class for asserting semantic tokens provided by the {@link SemanticTokensHandler},
 	 * using the builder pattern. Call {@link #beginAssertion(String, String...)} to get an instance
 	 * of the helper, then chain calls to {@link #assertNextToken(String, String, String...)} until no
 	 * more tokens are expected, at which point {@link #endAssertion()} should finally be called.
 	 */
 	private static class TokenAssertionHelper {
 
-		private static final SemanticTokensLegend LEGEND = new SemanticTokensLegend();
+		private static final SemanticTokensLegend LEGEND = SemanticTokensHandler.getLegend();
 
 		private IBuffer buffer;
 		private int currentLine = 0;
 		private int currentColumn = 0;
 
-		private int[] semanticTokensData;
+		private List<Integer> semanticTokensData;
 		private int currentDataIndex = 0;
 
 		private List<String> tokenTypeFilter;
 
-		private TokenAssertionHelper(IBuffer buffer, int[] semanticTokensData, List<String> tokenTypeFilter) {
+		private TokenAssertionHelper(IBuffer buffer, List<Integer> semanticTokensData, List<String> tokenTypeFilter) {
 			this.buffer = buffer;
 			this.semanticTokensData = semanticTokensData;
 			this.tokenTypeFilter = tokenTypeFilter;
 		}
 
 		/**
-		 * Begins an assertion for semantic tokens (calling {@link SemanticTokensCommand#provide(String)}),
+		 * Begins an assertion for semantic tokens (calling {@link SemanticTokensHandler#provide(String)}),
 		 * optionally providing a filter describing which token types to assert.
 		 *
 		 * @param uri The URI to assert provided semantic tokens for.
@@ -412,15 +414,15 @@ public class SemanticTokensCommandTest extends AbstractProjectsManagerBasedTest 
 		 * @throws JavaModelException
 		 */
 		public static TokenAssertionHelper beginAssertion(String uri, String... tokenTypeFilter) throws JavaModelException {
-			SemanticTokens semanticTokens = SemanticTokensCommand.provide(uri);
+			SemanticTokens semanticTokens = SemanticTokensHandler.provide(new NullProgressMonitor(), new SemanticTokensParams(new TextDocumentIdentifier(uri)));
 			assertNotNull("Provided semantic tokens should not be null", semanticTokens);
 			assertNotNull("Semantic tokens data should not be null", semanticTokens.getData());
-			assertTrue("Semantic tokens data should contain 5 integers per token", semanticTokens.getData().length % 5 == 0);
+			assertTrue("Semantic tokens data should contain 5 integers per token", semanticTokens.getData().size() % 5 == 0);
 			return new TokenAssertionHelper(JDTUtils.resolveTypeRoot(uri).getBuffer(), semanticTokens.getData(), Arrays.asList(tokenTypeFilter));
 		}
 
 		/**
-		 * Asserts the next semantic token in the data provided by {@link SemanticTokensCommand}.
+		 * Asserts the next semantic token in the data provided by {@link SemanticTokensHandler}.
 		 *
 		 * @param expectedText The expected text at the location of the next semantic token.
 		 * @param expectedType The expected type of the next semantic token.
@@ -429,13 +431,13 @@ public class SemanticTokensCommandTest extends AbstractProjectsManagerBasedTest 
 		 */
 		public TokenAssertionHelper assertNextToken(String expectedText, String expectedType, String... expectedModifiers) {
 			assertTrue("Token of type '" + expectedType + "' should be present in the semantic tokens data",
-				currentDataIndex < semanticTokensData.length);
+				currentDataIndex < semanticTokensData.size());
 
-			int deltaLine = semanticTokensData[currentDataIndex];
-			int deltaColumn = semanticTokensData[currentDataIndex + 1];
-			int length = semanticTokensData[currentDataIndex + 2];
-			int typeIndex = semanticTokensData[currentDataIndex + 3];
-			int encodedModifiers = semanticTokensData[currentDataIndex + 4];
+			int deltaLine = semanticTokensData.get(currentDataIndex);
+			int deltaColumn = semanticTokensData.get(currentDataIndex + 1);
+			int length = semanticTokensData.get(currentDataIndex + 2);
+			int typeIndex = semanticTokensData.get(currentDataIndex + 3);
+			int encodedModifiers = semanticTokensData.get(currentDataIndex + 4);
 
 			assertTrue("Token deltaLine should not be negative", deltaLine >= 0);
 			assertTrue("Token deltaColumn should not be negative", deltaColumn >= 0);
@@ -451,7 +453,7 @@ public class SemanticTokensCommandTest extends AbstractProjectsManagerBasedTest 
 
 			currentDataIndex += 5;
 
-			if (tokenTypeFilter.isEmpty() || tokenTypeFilter.contains(LEGEND.getTokenTypes()[typeIndex])) {
+			if (tokenTypeFilter.isEmpty() || tokenTypeFilter.contains(LEGEND.getTokenTypes().get(typeIndex))) {
 				assertTextMatchInBuffer(length, expectedText);
 				assertTokenType(typeIndex, expectedType);
 				assertTokenModifiers(encodedModifiers, Arrays.asList(expectedModifiers));
@@ -465,16 +467,16 @@ public class SemanticTokensCommandTest extends AbstractProjectsManagerBasedTest 
 
 		/**
 		 * Asserts that there are no more unexpected semantic tokens present in the data
-		 * provided by {@link SemanticTokensCommand}.
+		 * provided by {@link SemanticTokensHandler}.
 		 */
 		public void endAssertion() {
 			if (tokenTypeFilter.isEmpty()) {
-				assertTrue("There should be no more tokens", currentDataIndex == semanticTokensData.length);
+				assertTrue("There should be no more tokens", currentDataIndex == semanticTokensData.size());
 			}
 			else {
-				while (currentDataIndex < semanticTokensData.length) {
-					int currentTypeIndex = semanticTokensData[currentDataIndex + 3];
-					String currentType = LEGEND.getTokenTypes()[currentTypeIndex];
+				while (currentDataIndex < semanticTokensData.size()) {
+					int currentTypeIndex = semanticTokensData.get(currentDataIndex + 3);
+					String currentType = LEGEND.getTokenTypes().get(currentTypeIndex);
 					assertFalse(
 						"There should be no more tokens matching the filter, but found '" + currentType + "' token",
 						tokenTypeFilter.contains(currentType)
@@ -490,12 +492,12 @@ public class SemanticTokensCommandTest extends AbstractProjectsManagerBasedTest 
 		}
 
 		private void assertTokenType(int typeIndex, String expectedType) {
-			assertEquals("Token type should be correct.", expectedType, LEGEND.getTokenTypes()[typeIndex]);
+			assertEquals("Token type should be correct.", expectedType, LEGEND.getTokenTypes().get(typeIndex));
 		}
 
 		private void assertTokenModifiers(int encodedModifiers, List<String> expectedModifiers) {
-			for (int i = 0; i < LEGEND.getTokenModifiers().length; i++) {
-				String modifier = LEGEND.getTokenModifiers()[i];
+			for (int i = 0; i < LEGEND.getTokenModifiers().size(); i++) {
+				String modifier = LEGEND.getTokenModifiers().get(i);
 				boolean modifierIsEncoded = ((encodedModifiers >>> i) & 1) == 1;
 				boolean modifierIsExpected = expectedModifiers.contains(modifier);
 

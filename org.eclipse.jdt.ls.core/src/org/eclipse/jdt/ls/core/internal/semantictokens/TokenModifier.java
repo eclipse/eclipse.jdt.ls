@@ -29,15 +29,16 @@ import org.eclipse.jdt.core.dom.StructuralPropertyDescriptor;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.TypeParameter;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
+import org.eclipse.lsp4j.SemanticTokenModifiers;
 
 public enum TokenModifier {
 	// Standard LSP token modifiers, see https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_semanticTokens
-	ABSTRACT("abstract"),
-	STATIC("static"),
-	FINAL("readonly"),
-	DEPRECATED("deprecated"),
-	DECLARATION("declaration"),
-	DOCUMENTATION("documentation"),
+	ABSTRACT(SemanticTokenModifiers.Abstract),
+	STATIC(SemanticTokenModifiers.Static),
+	FINAL(SemanticTokenModifiers.Readonly),
+	DEPRECATED(SemanticTokenModifiers.Deprecated),
+	DECLARATION(SemanticTokenModifiers.Declaration),
+	DOCUMENTATION(SemanticTokenModifiers.Documentation),
 
 	// Custom token modifiers
 	PUBLIC("public"),

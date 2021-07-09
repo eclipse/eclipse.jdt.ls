@@ -17,22 +17,23 @@ import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.lsp4j.SemanticTokenTypes;
 
 public enum TokenType {
 	// Standard LSP token types, see https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_semanticTokens
-	NAMESPACE("namespace"),
-	CLASS("class"),
-	INTERFACE("interface"),
-	ENUM("enum"),
-	ENUM_MEMBER("enumMember"),
-	TYPE("type"),
-	TYPE_PARAMETER("typeParameter"),
-	METHOD("method"),
-	PROPERTY("property"),
-	VARIABLE("variable"),
-	PARAMETER("parameter"),
-	MODIFIER("modifier"),
-	KEYWORD("keyword"),
+	NAMESPACE(SemanticTokenTypes.Namespace),
+	CLASS(SemanticTokenTypes.Class),
+	INTERFACE(SemanticTokenTypes.Interface),
+	ENUM(SemanticTokenTypes.Enum),
+	ENUM_MEMBER(SemanticTokenTypes.EnumMember),
+	TYPE(SemanticTokenTypes.Type),
+	TYPE_PARAMETER(SemanticTokenTypes.TypeParameter),
+	METHOD(SemanticTokenTypes.Method),
+	PROPERTY(SemanticTokenTypes.Property),
+	VARIABLE(SemanticTokenTypes.Variable),
+	PARAMETER(SemanticTokenTypes.Parameter),
+	MODIFIER(SemanticTokenTypes.Modifier),
+	KEYWORD(SemanticTokenTypes.Keyword),
 
 	// Custom token types
 	ANNOTATION("annotation"),

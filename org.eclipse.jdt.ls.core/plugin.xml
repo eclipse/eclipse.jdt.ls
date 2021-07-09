@@ -89,12 +89,6 @@
                   id="java.project.refreshDiagnostics">
             </command>
             <command
-                  id="java.project.provideSemanticTokens">
-            </command>
-            <command
-                  id="java.project.getSemanticTokensLegend">
-            </command>
-            <command
                   id="java.project.import">
             </command>
             <command

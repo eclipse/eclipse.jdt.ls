@@ -49,6 +49,7 @@ import org.eclipse.jdt.ls.core.internal.handlers.HoverHandler;
 import org.eclipse.jdt.ls.core.internal.handlers.NavigateToDefinitionHandler;
 import org.eclipse.jdt.ls.core.internal.handlers.NavigateToTypeDefinitionHandler;
 import org.eclipse.jdt.ls.core.internal.handlers.SelectionRangeHandler;
+import org.eclipse.jdt.ls.core.internal.handlers.SemanticTokensHandler;
 import org.eclipse.jdt.ls.core.internal.handlers.WorkspaceEventsHandler;
 import org.eclipse.jdt.ls.core.internal.handlers.WorkspaceFolderChangeHandler;
 import org.eclipse.jdt.ls.core.internal.managers.ContentProviderManager;
@@ -78,6 +79,8 @@ import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.LocationLink;
 import org.eclipse.lsp4j.SelectionRange;
 import org.eclipse.lsp4j.SelectionRangeParams;
+import org.eclipse.lsp4j.SemanticTokens;
+import org.eclipse.lsp4j.SemanticTokensParams;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.TypeDefinitionParams;
@@ -398,6 +401,15 @@ public class SyntaxLanguageServer extends BaseJDTLanguageServer implements Langu
 			result.cancel(true);
 		}
 		return result;
+	}
+
+	@Override
+	public CompletableFuture<SemanticTokens> semanticTokensFull(SemanticTokensParams params) {
+		logInfo(">> textDocument/semanticTokens/full");
+		return computeAsync(monitor -> {
+			waitForLifecycleJobs(monitor);
+			return SemanticTokensHandler.provide(monitor, params);
+		});
 	}
 
 	private void waitForLifecycleJobs(IProgressMonitor monitor) {
