@@ -33,6 +33,7 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.formatter.DefaultCodeFormatterConstants;
 import org.eclipse.jdt.core.manipulation.CoreASTProvider;
+import org.eclipse.jdt.internal.core.util.Util;
 import org.eclipse.jdt.internal.ui.text.correction.IProblemLocationCore;
 import org.eclipse.jdt.internal.ui.text.correction.ProblemLocationCore;
 import org.eclipse.jdt.ls.core.internal.ChangeUtil;
@@ -58,6 +59,7 @@ import org.eclipse.lsp4j.CodeActionKind;
 import org.eclipse.lsp4j.CodeActionParams;
 import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.Diagnostic;
+import org.eclipse.lsp4j.DiagnosticRelatedInformation;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.WorkspaceEdit;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
@@ -291,7 +293,15 @@ public class CodeActionHandler {
 			int start = DiagnosticsHelper.getStartOffset(unit, diagnostic.getRange());
 			int end = DiagnosticsHelper.getEndOffset(unit, diagnostic.getRange());
 			boolean isError = diagnostic.getSeverity() == DiagnosticSeverity.Error;
-			locations[i] = new ProblemLocationCore(start, end - start, problemId, new String[0], isError, IJavaModelMarker.JAVA_MODEL_PROBLEM_MARKER);
+			String[] args;
+			if (diagnostic.getRelatedInformation() != null && !diagnostic.getRelatedInformation().isEmpty()) {
+				DiagnosticRelatedInformation dri = diagnostic.getRelatedInformation().get(0);
+				String argumentsString = dri.getMessage();
+				args = Util.getProblemArgumentsFromMarker(argumentsString);
+			} else {
+				args = new String[0];
+			}
+			locations[i] = new ProblemLocationCore(start, end - start, problemId, args, isError, IJavaModelMarker.JAVA_MODEL_PROBLEM_MARKER);
 		}
 		return locations;
 	}

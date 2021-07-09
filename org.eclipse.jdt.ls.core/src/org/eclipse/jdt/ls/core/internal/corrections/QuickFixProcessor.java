@@ -42,6 +42,7 @@ import org.eclipse.jdt.ls.core.internal.corrections.proposals.LocalCorrectionsSu
 import org.eclipse.jdt.ls.core.internal.corrections.proposals.ReorgCorrectionsSubProcessor;
 import org.eclipse.jdt.ls.core.internal.corrections.proposals.ReplaceCorrectionProposal;
 import org.eclipse.jdt.ls.core.internal.corrections.proposals.TypeMismatchSubProcessor;
+import org.eclipse.jdt.ls.core.internal.corrections.proposals.UnInitializedFinalFieldSubProcessor;
 import org.eclipse.jdt.ls.core.internal.corrections.proposals.UnresolvedElementsSubProcessor;
 import org.eclipse.jdt.ls.core.internal.text.correction.ModifierCorrectionSubProcessor;
 
@@ -128,6 +129,9 @@ public class QuickFixProcessor {
 			case IProblem.UndefinedName:
 			case IProblem.UnresolvedVariable:
 				UnresolvedElementsSubProcessor.getVariableProposals(context, problem, null, proposals);
+				break;
+			case IProblem.UninitializedBlankFinalField:
+				UnInitializedFinalFieldSubProcessor.getProposals(context, problem, proposals);
 				break;
 			case IProblem.AmbiguousType:
 			case IProblem.JavadocAmbiguousType:

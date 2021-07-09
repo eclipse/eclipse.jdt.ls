@@ -50,7 +50,9 @@ import org.eclipse.jdt.ls.core.internal.preferences.ClientPreferences;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.lsp4j.Diagnostic;
+import org.eclipse.lsp4j.DiagnosticRelatedInformation;
 import org.eclipse.lsp4j.DiagnosticSeverity;
+import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
@@ -178,7 +180,7 @@ public final class WorkspaceDiagnosticsHandler implements IResourceChangeListene
 		}
 		if (document != null) {
 			String uri = JDTUtils.getFileURI(resource);
-			this.connection.publishDiagnostics(new PublishDiagnosticsParams(ResourceUtils.toClientUri(uri), toDiagnosticsArray(document, markers, isDiagnosticTagSupported)));
+			this.connection.publishDiagnostics(new PublishDiagnosticsParams(ResourceUtils.toClientUri(uri), toDiagnosticsArray(document, markers, isDiagnosticTagSupported, uri)));
 		}
 		return false;
 	}
@@ -201,12 +203,12 @@ public final class WorkspaceDiagnosticsHandler implements IResourceChangeListene
 				projectMarkers.add(marker);
 			}
 		}
-		List<Diagnostic> diagnostics = toDiagnosticArray(range, projectMarkers, isDiagnosticTagSupported);
+		List<Diagnostic> diagnostics = toDiagnosticArray(range, projectMarkers, isDiagnosticTagSupported, uri);
 		String clientUri = ResourceUtils.toClientUri(uri);
 		connection.publishDiagnostics(new PublishDiagnosticsParams(clientUri, diagnostics));
 		if (pom.exists()) {
 			IDocument document = JsonRpcHelpers.toDocument(pom);
-			diagnostics = toDiagnosticsArray(document, pom.findMarkers(null, true, IResource.DEPTH_ZERO), isDiagnosticTagSupported);
+			diagnostics = toDiagnosticsArray(document, pom.findMarkers(null, true, IResource.DEPTH_ZERO), isDiagnosticTagSupported, uri);
 			List<Diagnostic> diagnosicts2 = toDiagnosticArray(range, pomMarkers, isDiagnosticTagSupported);
 			diagnostics.addAll(diagnosicts2);
 			String pomSuffix = clientUri.endsWith("/") ? "pom.xml" : "/pom.xml";
@@ -281,7 +283,7 @@ public final class WorkspaceDiagnosticsHandler implements IResourceChangeListene
 				document = JsonRpcHelpers.toDocument(file);
 			}
 			if (document != null) {
-				List<Diagnostic> diagnostics = WorkspaceDiagnosticsHandler.toDiagnosticsArray(document, entry.getValue().toArray(new IMarker[0]), isDiagnosticTagSupported);
+				List<Diagnostic> diagnostics = WorkspaceDiagnosticsHandler.toDiagnosticsArray(document, entry.getValue().toArray(new IMarker[0]), isDiagnosticTagSupported, uri);
 				connection.publishDiagnostics(new PublishDiagnosticsParams(ResourceUtils.toClientUri(uri), diagnostics));
 			}
 		}
@@ -300,11 +302,16 @@ public final class WorkspaceDiagnosticsHandler implements IResourceChangeListene
 	 * @return a list of {@link Diagnostic}s
 	 */
 	public static List<Diagnostic> toDiagnosticArray(Range range, Collection<IMarker> markers, boolean isDiagnosticTagSupported) {
-		List<Diagnostic> diagnostics = markers.stream().map(m -> toDiagnostic(range, m, isDiagnosticTagSupported)).filter(d -> d != null).collect(Collectors.toList());
+		List<Diagnostic> diagnostics = markers.stream().map(m -> toDiagnostic(range, m, isDiagnosticTagSupported, null)).filter(d -> d != null).collect(Collectors.toList());
 		return diagnostics;
 	}
 
-	private static Diagnostic toDiagnostic(Range range, IMarker marker, boolean isDiagnosticTagSupported) {
+	public static List<Diagnostic> toDiagnosticArray(Range range, Collection<IMarker> markers, boolean isDiagnosticTagSupported, String uri) {
+		List<Diagnostic> diagnostics = markers.stream().map(m -> toDiagnostic(range, m, isDiagnosticTagSupported, uri)).filter(d -> d != null).collect(Collectors.toList());
+		return diagnostics;
+	}
+
+	private static Diagnostic toDiagnostic(Range range, IMarker marker, boolean isDiagnosticTagSupported, String uri) {
 		if (marker == null || !marker.exists()) {
 			return null;
 		}
@@ -321,13 +328,32 @@ public final class WorkspaceDiagnosticsHandler implements IResourceChangeListene
 		if (isDiagnosticTagSupported) {
 			d.setTags(DiagnosticsHandler.getDiagnosticTag(problemId));
 		}
+		addRelatedInformation(d, range, marker, uri);
 		d.setRange(range);
 		return d;
 	}
 
+	private static void addRelatedInformation(Diagnostic d, Range range, IMarker marker, String uri) {
+		if (uri != null) {
+			String argumentsString = marker.getAttribute(IJavaModelMarker.ARGUMENTS, null);
+			if (argumentsString != null && !argumentsString.isEmpty()) {
+				Location location = new Location(ResourceUtils.toClientUri(uri), range);
+				DiagnosticRelatedInformation dri = new DiagnosticRelatedInformation(location, argumentsString);
+				List<DiagnosticRelatedInformation> relatedInformation = new ArrayList<>();
+				relatedInformation.add(dri);
+				d.setRelatedInformation(relatedInformation);
+			}
+		}
+	}
+
 	@Deprecated
 	public static List<Diagnostic> toDiagnosticsArray(IDocument document, IMarker[] markers) {
-		return toDiagnosticsArray(document, markers, false);
+		return toDiagnosticsArray(document, markers, false, null);
+	}
+
+	@Deprecated
+	public static List<Diagnostic> toDiagnosticsArray(IDocument document, IMarker[] markers, boolean isDiagnosticTagSupported) {
+		return toDiagnosticsArray(document, markers, isDiagnosticTagSupported, null);
 	}
 
 	/**
@@ -338,15 +364,16 @@ public final class WorkspaceDiagnosticsHandler implements IResourceChangeListene
 	 * @param markers
 	 * @return a list of {@link Diagnostic}s
 	 */
-	public static List<Diagnostic> toDiagnosticsArray(IDocument document, IMarker[] markers, boolean isDiagnosticTagSupported) {
+	public static List<Diagnostic> toDiagnosticsArray(IDocument document, IMarker[] markers, boolean isDiagnosticTagSupported, String uri) {
 		List<Diagnostic> diagnostics = Stream.of(markers)
-				.map(m -> toDiagnostic(document, m, isDiagnosticTagSupported))
+				.map(m -> toDiagnostic(document, m, isDiagnosticTagSupported,
+						uri))
 				.filter(d -> d != null)
 				.collect(Collectors.toList());
 		return diagnostics;
 	}
 
-	private static Diagnostic toDiagnostic(IDocument document, IMarker marker, boolean isDiagnosticTagSupported) {
+	private static Diagnostic toDiagnostic(IDocument document, IMarker marker, boolean isDiagnosticTagSupported, String uri) {
 		if (marker == null || !marker.exists()) {
 			return null;
 		}
@@ -356,10 +383,12 @@ public final class WorkspaceDiagnosticsHandler implements IResourceChangeListene
 		int problemId = marker.getAttribute(IJavaModelMarker.ID, 0);
 		d.setCode(String.valueOf(problemId));
 		d.setSeverity(convertSeverity(marker.getAttribute(IMarker.SEVERITY, -1)));
-		d.setRange(convertRange(document, marker));
+		Range range = convertRange(document, marker);
+		d.setRange(range);
 		if (isDiagnosticTagSupported) {
 			d.setTags(DiagnosticsHandler.getDiagnosticTag(problemId));
 		}
+		addRelatedInformation(d, range, marker, uri);
 		return d;
 	}
 

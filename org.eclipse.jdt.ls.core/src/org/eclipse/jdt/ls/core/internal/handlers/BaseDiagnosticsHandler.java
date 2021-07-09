@@ -25,13 +25,16 @@ import org.eclipse.jdt.core.IOpenable;
 import org.eclipse.jdt.core.IProblemRequestor;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.internal.compiler.problem.DefaultProblem;
+import org.eclipse.jdt.internal.core.util.Util;
 import org.eclipse.jdt.ls.core.internal.JDTUtils;
 import org.eclipse.jdt.ls.core.internal.JavaClientConnection;
 import org.eclipse.jdt.ls.core.internal.JavaLanguageServerPlugin;
 import org.eclipse.jdt.ls.core.internal.ResourceUtils;
 import org.eclipse.lsp4j.Diagnostic;
+import org.eclipse.lsp4j.DiagnosticRelatedInformation;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.DiagnosticTag;
+import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
@@ -125,7 +128,8 @@ public abstract class BaseDiagnosticsHandler implements IProblemRequestor {
 	public void endReporting() {
 		JavaLanguageServerPlugin.logInfo(problems.size() + " problems reported for " + this.uri.substring(this.uri.lastIndexOf('/')));
 		boolean isDiagnosticTagSupported = JavaLanguageServerPlugin.getPreferencesManager().getClientPreferences().isDiagnosticTagSupported();
-		PublishDiagnosticsParams $ = new PublishDiagnosticsParams(ResourceUtils.toClientUri(uri), toDiagnosticsArray(this.cu, problems, isDiagnosticTagSupported));
+		String clientUri = ResourceUtils.toClientUri(uri);
+		PublishDiagnosticsParams $ = new PublishDiagnosticsParams(clientUri, toDiagnosticsArray(this.cu, problems, isDiagnosticTagSupported, clientUri));
 		this.connection.publishDiagnostics($);
 	}
 
@@ -135,11 +139,16 @@ public abstract class BaseDiagnosticsHandler implements IProblemRequestor {
 	}
 
 	@Deprecated
-	public static List<Diagnostic> toDiagnosticsArray(IOpenable openable, List<IProblem> problems) {
-		return toDiagnosticsArray(openable, problems, false);
+	public static List<Diagnostic> toDiagnosticsArray(IOpenable openable, List<IProblem> problems, String clientUri) {
+		return toDiagnosticsArray(openable, problems, false, clientUri);
 	}
 
+	@Deprecated
 	public static List<Diagnostic> toDiagnosticsArray(IOpenable openable, List<IProblem> problems, boolean isDiagnosticTagSupported) {
+		return toDiagnosticsArray(openable, problems, isDiagnosticTagSupported, null);
+	}
+
+	public static List<Diagnostic> toDiagnosticsArray(IOpenable openable, List<IProblem> problems, boolean isDiagnosticTagSupported, String clientUri) {
 		List<Diagnostic> array = new ArrayList<>(problems.size());
 		for (IProblem problem : problems) {
 			Diagnostic diag = new Diagnostic();
@@ -147,9 +156,20 @@ public abstract class BaseDiagnosticsHandler implements IProblemRequestor {
 			diag.setMessage(problem.getMessage());
 			diag.setCode(Integer.toString(problem.getID()));
 			diag.setSeverity(convertSeverity(problem));
-			diag.setRange(convertRange(openable, problem));
+			Range range = convertRange(openable, problem);
+			diag.setRange(range);
 			if (isDiagnosticTagSupported) {
 				diag.setTags(getDiagnosticTag(problem.getID()));
+			}
+			if (clientUri != null && problem.getArguments() != null && problem.getArguments().length > 0) {
+				String argumentsString = Util.getProblemArgumentsForMarker(problem.getArguments());
+				if (argumentsString != null && !argumentsString.isEmpty()) {
+					Location location = new Location(clientUri, range);
+					DiagnosticRelatedInformation dri = new DiagnosticRelatedInformation(location, argumentsString);
+					List<DiagnosticRelatedInformation> relatedInformation = new ArrayList<>();
+					relatedInformation.add(dri);
+					diag.setRelatedInformation(relatedInformation);
+				}
 			}
 			array.add(diag);
 		}
